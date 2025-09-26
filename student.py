@@ -1,48 +1,13 @@
 import streamlit as st
 import sqlite3
-import json
 import os
-import streamlit.components.v1 as components
 import hashlib
+import json
+import streamlit.components.v1 as components
 
 # -------------------- DB CONNECTION --------------------
 conn = sqlite3.connect("lms.db", check_same_thread=False)
 c = conn.cursor()
-
-# -------------------- CREATE TABLES --------------------
-c.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    username TEXT PRIMARY KEY,
-    password TEXT,
-    role TEXT
-)
-""")
-c.execute("""
-CREATE TABLE IF NOT EXISTS materials (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    teacher TEXT,
-    title TEXT,
-    filename TEXT
-)
-""")
-c.execute("""
-CREATE TABLE IF NOT EXISTS assignments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student TEXT,
-    filename TEXT,
-    grade TEXT
-)
-""")
-c.execute("""
-CREATE TABLE IF NOT EXISTS events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    start TEXT,
-    end TEXT,
-    teacher TEXT
-)
-""")
-conn.commit()
 
 # -------------------- SESSION --------------------
 if "username" not in st.session_state:
@@ -67,48 +32,28 @@ def hash_password(password):
 
 # -------------------- LOGOUT --------------------
 if st.session_state.username:
-    if st.button("Logout", key="logout", help="Logout"):
-        st.session_state.username = None
-        st.experimental_rerun()
+    st.button("Logout", key="logout", help="Logout", on_click=lambda: st.session_state.update({"username": None}) or st.experimental_rerun())
 
-# -------------------- LOGIN / REGISTER --------------------
+# -------------------- LOGIN --------------------
 if st.session_state.username is None:
     st.title("📚 Student Portal")
-    option = st.radio("Select Option:", ["Login", "Register"], horizontal=True)
-
-    if option == "Register":
-        st.subheader("📝 Register New Student")
-        reg_user = st.text_input("Username", key="reg_user")
-        reg_pass = st.text_input("Password", type="password", key="reg_pass")
-        if st.button("Register"):
-            exists = c.execute("SELECT * FROM users WHERE username=?", (reg_user,)).fetchone()
-            if exists:
-                st.error("Username already exists!")
-            else:
-                c.execute("INSERT INTO users (username, password, role) VALUES (?,?,?)",
-                          (reg_user, hash_password(reg_pass), "Student"))
-                conn.commit()
-                st.success("Registered successfully! You can now login.")
-
-    elif option == "Login":
-        st.subheader("🔑 Login")
-        username = st.text_input("Username", key="login_user")
-        password = st.text_input("Password", type="password", key="login_pass")
-        if st.button("Login"):
-            user = c.execute("SELECT * FROM users WHERE username=? AND password=? AND role='Student'",
-                             (username, hash_password(password))).fetchone()
-            if user:
-                st.session_state.username = username
-                st.success(f"Welcome {username}!")
-                st.experimental_rerun()
-            else:
-                st.error("Invalid username or password!")
+    username = st.text_input("Username", key="login_user")
+    password = st.text_input("Password", type="password", key="login_pass")
+    if st.button("Login"):
+        user = c.execute("SELECT * FROM users WHERE username=? AND password=? AND role='Student'",
+                         (username, hash_password(password))).fetchone()
+        if user:
+            st.session_state.username = username
+            st.success(f"Welcome {username}!")
+            st.experimental_rerun()
+        else:
+            st.error("Invalid username or password!")
 
 # -------------------- STUDENT DASHBOARD --------------------
 else:
     st.header(f"🎓 Welcome, {st.session_state.username}")
 
-    # Materials
+    # -------------------- Materials --------------------
     st.subheader("📂 Study Materials")
     materials = c.execute("SELECT teacher, title, filename FROM materials").fetchall()
     for idx, m in enumerate(materials):
@@ -120,10 +65,10 @@ else:
             key=f"mat_{idx}"
         )
 
-    # Assignments
+    # -------------------- Submit Assignment --------------------
     st.subheader("📤 Submit Assignment")
     file = st.file_uploader("Upload Assignment", type=["pdf", "docx", "txt"], key="assign_up")
-    if file and st.button("Submit"):
+    if file and st.button("Submit Assignment"):
         os.makedirs("submissions", exist_ok=True)
         path = f"submissions/{file.name}"
         with open(path, "wb") as f:
@@ -133,22 +78,21 @@ else:
         conn.commit()
         st.success("Assignment submitted!")
 
-    # Calendar
+    # -------------------- Calendar --------------------
     st.subheader("📅 Calendar")
-    events = c.execute("SELECT title, start, end, teacher FROM events").fetchall()
+    events = c.execute("SELECT title, date, teacher FROM events").fetchall()
     events_json = []
     colors = ["#4CAF50","#FF9800","#2196F3","#9C27B0","#F44336"]
     teacher_colors = {}
     idx_color = 0
     for e in events:
-        teacher = e[3]
+        teacher = e[2]
         if teacher not in teacher_colors:
             teacher_colors[teacher] = colors[idx_color % len(colors)]
             idx_color += 1
         events_json.append({
             "title": f"{e[0]} ({teacher})",
             "start": e[1],
-            "end": e[2],
             "color": teacher_colors[teacher]
         })
 
@@ -171,9 +115,6 @@ else:
         navLinks: true,
         editable: false,
         selectable: false,
-        height: 'auto',
-        contentHeight: 'auto',
-        dayMaxEvents: true,
         events: {json.dumps(events_json)}
       }});
       calendar.render();
