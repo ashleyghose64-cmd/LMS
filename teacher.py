@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import json
-import datetime
 import os
 import streamlit.components.v1 as components
 import hashlib
@@ -76,53 +75,4 @@ if st.session_state.username is None:
         reg_pass = st.text_input("Password", type="password", key="reg_pass")
         if st.button("Register"):
             exists = c.execute("SELECT * FROM users WHERE username=?", (reg_user,)).fetchone()
-            if exists:
-                st.error("Username already exists!")
-            else:
-                c.execute("INSERT INTO users (username, password, role) VALUES (?,?,?)",
-                          (reg_user, hash_password(reg_pass), "Teacher"))
-                conn.commit()
-                st.success("Registered successfully! You can now login.")
-
-    elif option == "Login":
-        st.subheader("🔑 Login")
-        username = st.text_input("Username", key="login_user")
-        password = st.text_input("Password", type="password", key="login_pass")
-        if st.button("Login"):
-            user = c.execute("SELECT * FROM users WHERE username=? AND password=? AND role='Teacher'",
-                             (username, hash_password(password))).fetchone()
-            if user:
-                st.session_state.username = username
-                st.success(f"Welcome {username}!")
-                st.experimental_rerun()
-            else:
-                st.error("Invalid username or password!")
-
-# -------------------- TEACHER DASHBOARD --------------------
-else:
-    st.header(f"👩‍🏫 Welcome, {st.session_state.username}")
-
-    # Upload Material
-    st.subheader("📂 Upload Material")
-    title = st.text_input("Title", key="mat_title")
-    file = st.file_uploader("Upload File", type=["pdf","docx","txt"], key="mat_file")
-    if file and st.button("Upload Material"):
-        os.makedirs("materials", exist_ok=True)
-        path = f"materials/{file.name}"
-        with open(path, "wb") as f:
-            f.write(file.getbuffer())
-        c.execute("INSERT INTO materials (teacher, title, filename) VALUES (?,?,?)",
-                  (st.session_state.username, title, path))
-        conn.commit()
-        st.success("Material uploaded!")
-
-    # Assign Subjects/Tasks
-    st.subheader("📅 Assign Subjects/Tasks")
-    subj = st.text_input("Subject/Task", key="task_subj")
-    start = st.date_input("Start Date", key="start_date")
-    end = st.date_input("End Date", key="end_date")
-    if st.button("Add Event"):
-        c.execute("INSERT INTO events (title, start, end, teacher) VALUES (?,?,?,?)",
-                  (subj, str(start), str(end), st.session_state.username))
-        conn.commit()
-        st.success("
+           
