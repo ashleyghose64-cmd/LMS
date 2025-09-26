@@ -9,6 +9,33 @@ import hashlib
 conn = sqlite3.connect("lms.db", check_same_thread=False)
 c = conn.cursor()
 
+# -------------------- CREATE TABLES --------------------
+c.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    username TEXT PRIMARY KEY,
+    password TEXT,
+    role TEXT
+)
+""")
+c.execute("""
+CREATE TABLE IF NOT EXISTS materials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    teacher TEXT,
+    title TEXT,
+    filename TEXT
+)
+""")
+c.execute("""
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    start TEXT,
+    end TEXT,
+    teacher TEXT
+)
+""")
+conn.commit()
+
 # -------------------- SESSION --------------------
 if "username" not in st.session_state:
     st.session_state.username = None
@@ -98,7 +125,7 @@ else:
         conn.commit()
         st.success("Event added!")
 
-    # Calendar (Same stylish calendar)
+    # Calendar (Stylish)
     st.subheader("📅 Calendar")
     events = c.execute("SELECT title, start, end, teacher FROM events").fetchall()
     events_json = []
