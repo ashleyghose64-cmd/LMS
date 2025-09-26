@@ -2,10 +2,10 @@ import streamlit as st
 import sqlite3
 import os
 import datetime
-import pywhatkit as kit
 import streamlit.components.v1 as components
 import json
 
+# -------------------- DB CONNECTION --------------------
 conn = sqlite3.connect("lms.db", check_same_thread=False)
 c = conn.cursor()
 
@@ -52,14 +52,7 @@ else:
         c.execute("INSERT INTO materials (teacher, title, filename) VALUES (?,?,?)",
                   (st.session_state.username, title, path))
         conn.commit()
-
-        # Notify students via WhatsApp
-        students = c.execute("SELECT whatsapp_number FROM users WHERE role='Student'").fetchall()
-        for s in students:
-            if s[0]:
-                now = datetime.datetime.now()
-                kit.sendwhatmsg(s[0], f"📌 New material uploaded: {title}", now.hour, now.minute+1)
-        st.success("Material uploaded and students notified!")
+        st.success("Material uploaded!")
 
     # -------------------- Calendar --------------------
     st.subheader("📅 Assign Subjects/Tasks")
