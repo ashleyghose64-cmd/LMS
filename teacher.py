@@ -9,41 +9,6 @@ import hashlib
 conn = sqlite3.connect("lms.db", check_same_thread=False)
 c = conn.cursor()
 
-# -------------------- CREATE TABLES --------------------
-c.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    username TEXT PRIMARY KEY,
-    password TEXT,
-    role TEXT
-)
-""")
-c.execute("""
-CREATE TABLE IF NOT EXISTS materials (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    teacher TEXT,
-    title TEXT,
-    filename TEXT
-)
-""")
-c.execute("""
-CREATE TABLE IF NOT EXISTS assignments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student TEXT,
-    filename TEXT,
-    grade TEXT
-)
-""")
-c.execute("""
-CREATE TABLE IF NOT EXISTS events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    start TEXT,
-    end TEXT,
-    teacher TEXT
-)
-""")
-conn.commit()
-
 # -------------------- SESSION --------------------
 if "username" not in st.session_state:
     st.session_state.username = None
@@ -57,12 +22,19 @@ h1,h2,h3,h4,h5 { font-family: 'Helvetica Neue', sans-serif; color:#222; }
 .stButton>button { border-radius: 10px; padding: 8px 20px; font-size:16px; background-color:#4CAF50; color:white; margin:5px 0;}
 .stTextInput>div>input, .stDateInput>div>input { padding: 8px; border-radius:5px; border:1px solid #ddd; }
 .stFileUploader>div>input { border-radius:5px; }
+.logout-btn { float: right; }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------- PASSWORD HASH --------------------
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
+
+# -------------------- LOGOUT --------------------
+if st.session_state.username:
+    if st.button("Logout", key="logout", help="Logout"):
+        st.session_state.username = None
+        st.experimental_rerun()
 
 # -------------------- LOGIN / REGISTER --------------------
 if st.session_state.username is None:
