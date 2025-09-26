@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import json
-import datetime
 import os
 import streamlit.components.v1 as components
 import hashlib
@@ -145,10 +144,13 @@ else:
             "end": e[2],
             "color": teacher_colors[teacher]
         })
+
     calendar_code = f"""
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet'/>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
-    <div id='calendar' style='background-color:white; padding:15px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);'></div>
+    <div id='calendar' style='background-color:white; padding:15px; border-radius:15px;
+         box-shadow:0 2px 12px rgba(0,0,0,0.15); max-width:100%; margin:auto; font-family:"Helvetica Neue",sans-serif;'>
+    </div>
     <script>
     document.addEventListener('DOMContentLoaded', function() {{
       var calendarEl = document.getElementById('calendar');
@@ -162,10 +164,13 @@ else:
         navLinks: true,
         editable: false,
         selectable: false,
+        height: 'auto',
+        contentHeight: 'auto',
+        dayMaxEvents: true,
         events: {json.dumps(events_json)}
       }});
       calendar.render();
     }});
     </script>
     """
-    components.html(calendar_code, height=600)
+    components.html(calendar_code, height=600, scrolling=True)
