@@ -1,12 +1,9 @@
 import streamlit as st
 import sqlite3
+import os
 import hashlib
 import json
 import streamlit.components.v1 as components
-import os
-if not os.path.exists("lms.db"):
-    import init_db
-
 
 # -------------------- DB CONNECTION --------------------
 conn = sqlite3.connect("lms.db", check_same_thread=False)
