@@ -75,4 +75,102 @@ if st.session_state.username is None:
         reg_pass = st.text_input("Password", type="password", key="reg_pass")
         if st.button("Register"):
             exists = c.execute("SELECT * FROM users WHERE username=?", (reg_user,)).fetchone()
-           
+            if exists:
+                st.error("Username already exists!")
+            else:
+                c.execute("INSERT INTO users (username, password, role) VALUES (?,?,?)",
+                          (reg_user, hash_password(reg_pass), "Teacher"))
+                conn.commit()
+                st.success("Registered successfully! You can now login.")
+
+    elif option == "Login":
+        st.subheader("🔑 Login")
+        username = st.text_input("Username", key="login_user")
+        password = st.text_input("Password", type="password", key="login_pass")
+        if st.button("Login"):
+            user = c.execute("SELECT * FROM users WHERE username=? AND password=? AND role='Teacher'",
+                             (username, hash_password(password))).fetchone()
+            if user:
+                st.session_state.username = username
+                st.success(f"Welcome {username}!")
+                st.experimental_rerun()
+            else:
+                st.error("Invalid username or password!")
+
+# -------------------- TEACHER DASHBOARD --------------------
+else:
+    st.header(f"👩‍🏫 Welcome, {st.session_state.username}")
+
+    # Upload Material
+    st.subheader("📂 Upload Material")
+    title = st.text_input("Title", key="mat_title")
+    file = st.file_uploader("Upload File", type=["pdf","docx","txt"], key="mat_file")
+    if file and st.button("Upload Material"):
+        os.makedirs("materials", exist_ok=True)
+        path = f"materials/{file.name}"
+        with open(path, "wb") as f:
+            f.write(file.getbuffer())
+        c.execute("INSERT INTO materials (teacher, title, filename) VALUES (?,?,?)",
+                  (st.session_state.username, title, path))
+        conn.commit()
+        st.success("Material uploaded!")
+
+    # Assign Subjects/Tasks
+    st.subheader("📅 Assign Subjects/Tasks")
+    subj = st.text_input("Subject/Task", key="task_subj")
+    start = st.date_input("Start Date", key="start_date")
+    end = st.date_input("End Date", key="end_date")
+    if st.button("Add Event"):
+        c.execute("INSERT INTO events (title, start, end, teacher) VALUES (?,?,?,?)",
+                  (subj, str(start), str(end), st.session_state.username))
+        conn.commit()
+        st.success("Event added!")
+
+    # Calendar (Same stylish calendar)
+    st.subheader("📅 Calendar")
+    events = c.execute("SELECT title, start, end, teacher FROM events").fetchall()
+    events_json = []
+    colors = ["#4CAF50","#FF9800","#2196F3","#9C27B0","#F44336"]
+    teacher_colors = {}
+    idx_color = 0
+    for e in events:
+        teacher = e[3]
+        if teacher not in teacher_colors:
+            teacher_colors[teacher] = colors[idx_color % len(colors)]
+            idx_color += 1
+        events_json.append({
+            "title": f"{e[0]} ({teacher})",
+            "start": e[1],
+            "end": e[2],
+            "color": teacher_colors[teacher]
+        })
+
+    calendar_code = f"""
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet'/>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+    <div id='calendar' style='background-color:white; padding:15px; border-radius:15px;
+         box-shadow:0 2px 12px rgba(0,0,0,0.15); max-width:100%; margin:auto; font-family:"Helvetica Neue",sans-serif;'>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {{
+      var calendarEl = document.getElementById('calendar');
+      var calendar = new FullCalendar.Calendar(calendarEl, {{
+        initialView: 'dayGridMonth',
+        headerToolbar: {{
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        }},
+        navLinks: true,
+        editable: false,
+        selectable: false,
+        height: 'auto',
+        contentHeight: 'auto',
+        dayMaxEvents: true,
+        events: {json.dumps(events_json)}
+      }});
+      calendar.render();
+    }});
+    </script>
+    """
+    components.html(calendar_code, height=600, scrolling=True)
