@@ -2,8 +2,8 @@ import streamlit as st
 import sqlite3
 import json
 import os
-import streamlit.components.v1 as components
 import hashlib
+import streamlit.components.v1 as components
 
 # -------------------- DB CONNECTION --------------------
 conn = sqlite3.connect("lms.db", check_same_thread=False)
@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT
 )
 """)
+
 c.execute("""
 CREATE TABLE IF NOT EXISTS materials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,12 +26,13 @@ CREATE TABLE IF NOT EXISTS materials (
     filename TEXT
 )
 """)
+
+# Simplified: one date per task
 c.execute("""
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT,
-    start TEXT,
-    end TEXT,
+    date TEXT,
     teacher TEXT
 )
 """)
@@ -59,9 +61,7 @@ def hash_password(password):
 
 # -------------------- LOGOUT --------------------
 if st.session_state.username:
-    if st.button("Logout", key="logout", help="Logout"):
-        st.session_state.username = None
-        st.experimental_rerun()
+    st.button("Logout", key="logout", help="Logout", on_click=lambda: st.session_state.update({"username": None}) or st.experimental_rerun())
 
 # -------------------- LOGIN / REGISTER --------------------
 if st.session_state.username is None:
@@ -100,9 +100,9 @@ if st.session_state.username is None:
 else:
     st.header(f"👩‍🏫 Welcome, {st.session_state.username}")
 
-    # Upload Material
+    # -------------------- Upload Material --------------------
     st.subheader("📂 Upload Material")
-    title = st.text_input("Title", key="mat_title")
+    title = st.text_input("Material Title", key="mat_title")
     file = st.file_uploader("Upload File", type=["pdf","docx","txt"], key="mat_file")
     if file and st.button("Upload Material"):
         os.makedirs("materials", exist_ok=True)
@@ -114,33 +114,35 @@ else:
         conn.commit()
         st.success("Material uploaded!")
 
-    # Assign Subjects/Tasks
-    st.subheader("📅 Assign Subjects/Tasks")
-    subj = st.text_input("Subject/Task", key="task_subj")
-    start = st.date_input("Start Date", key="start_date")
-    end = st.date_input("End Date", key="end_date")
-    if st.button("Add Event"):
-        c.execute("INSERT INTO events (title, start, end, teacher) VALUES (?,?,?,?)",
-                  (subj, str(start), str(end), st.session_state.username))
-        conn.commit()
-        st.success("Event added!")
+    # -------------------- Assign Task (Date Only) --------------------
+    st.subheader("📅 Assign Task / Subject")
+    task_title = st.text_input("Task / Subject Name", key="task_title")
+    task_date = st.date_input("Select Date", key="task_date")
+    if st.button("Add Task"):
+        if task_title:
+            c.execute("INSERT INTO events (title, date, teacher) VALUES (?,?,?)",
+                      (task_title, str(task_date), st.session_state.username))
+            conn.commit()
+            st.success(f"Task '{task_title}' added for {task_date}!")
+            st.experimental_rerun()
+        else:
+            st.error("Please enter a task name.")
 
-    # Calendar (Stylish)
+    # -------------------- Calendar --------------------
     st.subheader("📅 Calendar")
-    events = c.execute("SELECT title, start, end, teacher FROM events").fetchall()
+    events = c.execute("SELECT title, date, teacher FROM events").fetchall()
     events_json = []
     colors = ["#4CAF50","#FF9800","#2196F3","#9C27B0","#F44336"]
     teacher_colors = {}
     idx_color = 0
     for e in events:
-        teacher = e[3]
+        teacher = e[2]
         if teacher not in teacher_colors:
             teacher_colors[teacher] = colors[idx_color % len(colors)]
             idx_color += 1
         events_json.append({
             "title": f"{e[0]} ({teacher})",
             "start": e[1],
-            "end": e[2],
             "color": teacher_colors[teacher]
         })
 
@@ -162,10 +164,10 @@ else:
         }},
         navLinks: true,
         editable: false,
-        selectable: false,
-        height: 'auto',
-        contentHeight: 'auto',
-        dayMaxEvents: true,
+        selectable: true,
+        dateClick: function(info) {{
+            // Streamlit cannot directly handle JS prompts, so handled via Streamlit input
+        }},
         events: {json.dumps(events_json)}
       }});
       calendar.render();
